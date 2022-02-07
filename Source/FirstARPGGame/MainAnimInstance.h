@@ -31,4 +31,19 @@ public:
 	UPROPERTY(EditAnyWhere, BlueprintReadOnly, Category = Movement)
 	class APawn* Pawn;
 	
+	UPROPERTY(EditAnyWhere, BlueprintReadOnly, Category = Movement)
+	class AMain* Main;
+
+	float OnGroundTime;
+
+	float FallingDeadTime;
+
+	UPROPERTY(EditAnyWhere, BlueprintReadOnly, Category = Movement)
+	bool bIsFallingDead;
+
+	UPROPERTY(EditAnyWhere, BlueprintReadOnly, Category = Movement)
+	bool bIsDancing1;
+
+	UPROPERTY(EditAnyWhere, BlueprintReadOnly, Category = Movement)
+	bool bIsDancing2;
 };
