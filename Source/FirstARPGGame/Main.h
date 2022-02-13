@@ -35,6 +35,17 @@ public:
 	// Sets default values for this character's properties
 	AMain();
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+	bool bHasCombatTarget;
+
+	FORCEINLINE void SeHasCombatTarget(bool HasTarget) { bHasCombatTarget = HasTarget; }
+
+	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = "Combat")
+	FVector CombatTargetLocation;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Controller")
+	class AMainPlayerController* MainPlayerController;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	class UParticleSystem* HitParticles;
 
@@ -83,6 +94,20 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	float MinSprintStamina;
 
+	float InterpSpeed;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+	class AEnemy* CombatTarget;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Combat")
+	bool bInterpToEnemy;
+	
+	void SetInterpToEnemy(bool Interp);
+
+	FORCEINLINE void SetCombatTarget(AEnemy* Target) { CombatTarget = Target; }
+
+	FRotator GetLookAtRotationYaw(FVector Target);
+
 	//Camera boom positioning the camera behind the player
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, CateGory = Camera, meta = (AllowPrivateAccess = "true"))
 	class USpringArmComponent* CameraBoom;
@@ -122,6 +147,11 @@ public:
 	void DecrementHealth(float Amount);
 
 	void IncrementCoin(int32 Amount);
+
+	virtual float TakeDamage(float DamageAmount, 
+							struct FDamageEvent const& DamageEvent, 
+							class AController* EventInstigator, 
+							AActor* DamageCauser) override;
 
 	void Die();
 
@@ -182,3 +212,4 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void PlaySwingSound();
 };
+

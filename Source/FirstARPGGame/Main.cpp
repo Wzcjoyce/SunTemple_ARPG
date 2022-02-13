@@ -13,6 +13,9 @@
 #include "Animation/AnimInstance.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundCue.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "Enemy.h"
+#include "MainPlayerController.h"
 
 // Sets default values
 AMain::AMain()
@@ -72,6 +75,11 @@ AMain::AMain()
 	bDance1KeyDown = false;
 	bDance2KeyDown = false;
 	bLMBDown = false;
+
+	InterpSpeed = 15.f;
+	bInterpToEnemy = false;
+
+	bHasCombatTarget = false;
 }
 
 // Called when the game starts or when spawned
@@ -91,6 +99,12 @@ void AMain::BeginPlay()
 		.25f
 	);
 	*/
+
+	MainPlayerController = Cast<AMainPlayerController>(GetController());
+	if (MainPlayerController)
+	{
+		//MainPlayerController->GameModeOnly();
+	}
 	
 }
 
@@ -191,6 +205,23 @@ void AMain::Tick(float DeltaTime)
 		;
 	}
 
+
+	if (bInterpToEnemy && CombatTarget)
+	{
+		FRotator LookAtYaw = GetLookAtRotationYaw(CombatTarget->GetActorLocation());
+		FRotator InterpRotation = FMath::RInterpTo(GetActorRotation(), LookAtYaw, DeltaTime, InterpSpeed);
+
+		SetActorRotation(InterpRotation);
+	}
+
+	if (CombatTarget)
+	{
+		CombatTargetLocation = CombatTarget->GetActorLocation();
+		if (MainPlayerController)
+		{
+			MainPlayerController->EnemyLocation = CombatTargetLocation;
+		}
+	}
 }
 
 // Called to bind functionality to input
@@ -302,7 +333,14 @@ void AMain::DecrementHealth(float Amount)
 
 void AMain::Die()
 {
-
+	//if (MovementStatus == EMovementStatus::EMS_Dead) return;
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && CombatMontage)
+	{
+		AnimInstance->Montage_Play(CombatMontage, 1.0f);
+		AnimInstance->Montage_JumpToSection(FName("Death"));
+	}
+	//SetMovementStatus(EMovementStatus::EMS_Dead);
 }
 
 void AMain::IncrementCoin(int32 Amount)
@@ -403,6 +441,7 @@ void AMain::Attack()
 	if (!bAttacking)
 	{
 		bAttacking = true;
+		SetInterpToEnemy(true);
 
 		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 
@@ -432,6 +471,7 @@ void AMain::Attack()
 void AMain::AttackEnd()
 {
 	bAttacking = false;
+	SetInterpToEnemy(false);
 	if (bLMBDown)
 	{
 		Attack();
@@ -445,4 +485,24 @@ void AMain::PlaySwingSound()
 	{
 		UGameplayStatics::PlaySound2D(this, EquippedWeapon->SwingSound);
 	}
+}
+
+
+void AMain::SetInterpToEnemy(bool Interp)
+{
+	bInterpToEnemy = Interp;
+}
+
+FRotator AMain::GetLookAtRotationYaw(FVector Target)
+{
+	FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), Target);
+	FRotator LookAtRotationYaw(0.f, LookAtRotation.Yaw, 0.f);
+	return LookAtRotationYaw;
+}
+
+float AMain::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser)
+{
+	DecrementHealth(DamageAmount);
+
+	return DamageAmount;
 }

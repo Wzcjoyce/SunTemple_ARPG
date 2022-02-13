@@ -76,6 +76,7 @@ void UMainAnimInstance::UpdateAnimationProperties()
 			if (GetWorld()->GetTimeSeconds() - OnGroundTime > FallingDeadTime)
 			{
 				bIsFallingDead = true;
+				Main->DecrementHealth(Main->MaxHealth);
 				Main->Die();
 			}
 		}
