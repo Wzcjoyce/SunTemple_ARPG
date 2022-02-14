@@ -11,6 +11,9 @@ enum class EMovementStatus : uint8
 {
 	EMS_Normal UMETA(DisplayName = "Normal"),
 	EMS_Sprinting UMETA(DisplayName = "Sprinting"),
+	EMS_Dead UMETA(DisplayName = "Dead"),
+
+
 	EMS_Max UMETA(Display = "DefaultMAX")
 };
 
@@ -155,6 +158,8 @@ public:
 
 	void Die();
 
+	virtual void Jump() override;
+
 
 
 protected:
@@ -171,6 +176,9 @@ public:
 	// call back functions for foward/backward inputs and side to side inputs
 	void MoveForward(float Input);
 	void MoveRight(float Input);
+
+	bool bMovingForward;
+	bool bMovingRight;
 
 	// Called via input to turn at a given rate
 	// this is a normalized rate , 1.0 means 100% of desired turn rate
@@ -211,5 +219,8 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void PlaySwingSound();
+
+	UFUNCTION(BlueprintCallable)
+	void DeathEnd();
 };
 

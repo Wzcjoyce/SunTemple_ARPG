@@ -80,6 +80,8 @@ AMain::AMain()
 	bInterpToEnemy = false;
 
 	bHasCombatTarget = false;
+	bMovingForward = false;
+	bMovingRight = false;
 }
 
 // Called when the game starts or when spawned
@@ -115,6 +117,8 @@ void AMain::Tick(float DeltaTime)
 
 	float DeltaStamina = StaminaDrainRate * DeltaTime;
 
+	if (MovementStatus == EMovementStatus::EMS_Dead) return;
+
 	switch (StaminaStatus)
 	{
 	case EStaminaStatus::ESS_Normal:
@@ -129,7 +133,15 @@ void AMain::Tick(float DeltaTime)
 			{
 				Stamina -= DeltaStamina;
 			}
-			SetMovementStatus(EMovementStatus::EMS_Sprinting);
+
+			if (bMovingForward || bMovingRight)
+			{
+				SetMovementStatus(EMovementStatus::EMS_Sprinting);
+			}
+			else
+			{
+				SetMovementStatus(EMovementStatus::EMS_Normal);
+			}
 
 		}
 		else // Shift key up
@@ -158,8 +170,17 @@ void AMain::Tick(float DeltaTime)
 			else
 			{
 				Stamina -= DeltaStamina;
-				SetMovementStatus(EMovementStatus::EMS_Sprinting);
+				if (bMovingForward || bMovingRight)
+				{
+					SetMovementStatus(EMovementStatus::EMS_Sprinting);
+				}
+				else
+				{
+					SetMovementStatus(EMovementStatus::EMS_Normal);
+				}
+				
 			}
+			
 		}
 		else // Shift key up
 		{
@@ -257,7 +278,8 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 void AMain::MoveForward(float Input)
 {
-	if ((Controller != nullptr) && (Input != -0.0f) && (!bAttacking))
+	bMovingForward = false;
+	if ((Controller != nullptr) && (Input != -0.0f) && (!bAttacking) &&(MovementStatus != EMovementStatus::EMS_Dead))
 	{
 		// find out which way is forward
 		const FRotator Rotation = Controller->GetControlRotation();
@@ -265,13 +287,16 @@ void AMain::MoveForward(float Input)
 
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 		AddMovementInput(Direction, Input);
+
+		bMovingForward = true;
 	}
 }
 
 
 void AMain::MoveRight(float Input)
 {
-	if ((Controller != nullptr) && (Input != -0.0f) && (!bAttacking))
+	bMovingRight = false;
+	if ((Controller != nullptr) && (Input != -0.0f) && (!bAttacking) && (MovementStatus != EMovementStatus::EMS_Dead))
 	{
 		// find out which way is forward
 		const FRotator Rotation = Controller->GetControlRotation();
@@ -279,6 +304,8 @@ void AMain::MoveRight(float Input)
 
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 		AddMovementInput(Direction, Input);
+
+		bMovingRight = true;
 	}
 }
 
@@ -295,6 +322,8 @@ void AMain::LookUpAtRate(float Rate)
 void AMain::LMBDown()
 {
 	bLMBDown = true;
+
+	if (MovementStatus == EMovementStatus::EMS_Dead) return;
 
 	if (ActiveOverlappingItem)
 	{
@@ -333,14 +362,28 @@ void AMain::DecrementHealth(float Amount)
 
 void AMain::Die()
 {
-	//if (MovementStatus == EMovementStatus::EMS_Dead) return;
+	if (MovementStatus == EMovementStatus::EMS_Dead) return;
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance && CombatMontage)
 	{
 		AnimInstance->Montage_Play(CombatMontage, 1.0f);
 		AnimInstance->Montage_JumpToSection(FName("Death"));
 	}
-	//SetMovementStatus(EMovementStatus::EMS_Dead);
+	SetMovementStatus(EMovementStatus::EMS_Dead);
+}
+
+void AMain::Jump()
+{
+	if (MovementStatus != EMovementStatus::EMS_Dead)
+	{
+		Super::Jump();
+	}
+}
+
+void AMain::DeathEnd()
+{
+	GetMesh()->bPauseAnims = true;
+	GetMesh()->bNoSkeletonUpdate = true;
 }
 
 void AMain::IncrementCoin(int32 Amount)
@@ -364,6 +407,7 @@ void AMain::SetMovementStatus(EMovementStatus Status)
 
 void AMain::Dance1KeyDown()
 {
+	if (MovementStatus == EMovementStatus::EMS_Dead) return;
 	bDance1KeyDown = true;
 }
 
@@ -374,6 +418,7 @@ void AMain::Dance1KeyUp()
 
 void AMain::Dance2KeyDown()
 {
+	if (MovementStatus == EMovementStatus::EMS_Dead) return;
 	bDance2KeyDown = true;
 }
 
@@ -438,7 +483,7 @@ void AMain::SetEquippedWeapon(AWeapon* WeaponToSet)
 
 void AMain::Attack()
 {
-	if (!bAttacking)
+	if (!bAttacking && MovementStatus != EMovementStatus::EMS_Dead)
 	{
 		bAttacking = true;
 		SetInterpToEnemy(true);
@@ -502,7 +547,23 @@ FRotator AMain::GetLookAtRotationYaw(FVector Target)
 
 float AMain::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser)
 {
-	DecrementHealth(DamageAmount);
+	if (Health - DamageAmount <= 0.f)
+	{
+		Health -= DamageAmount;
+		Die();
+		if (DamageCauser)
+		{
+			AEnemy* Enemy = Cast<AEnemy>(DamageCauser);
+			if (Enemy)
+			{
+				Enemy->bHasValidTarget = false;
+			}
+		}
+	}
+	else
+	{
+		Health -= DamageAmount;
+	}
 
 	return DamageAmount;
 }

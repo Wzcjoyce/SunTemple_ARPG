@@ -46,12 +46,14 @@ AEnemy::AEnemy()
 	MaxHealth = 100.f;
 	Damage = 10.f;
 
-	AttackMinTime = 0.5f;
-	AttackMaxTime = 3.0f;
+	AttackMinTime = 0.25f;
+	AttackMaxTime = 1;
 
 	EnemyMovementStatus = EEnemyMovementStatus::EMS_Idle;
 
-	DeathDelay = 1.f;
+	DeathDelay = 5.f;
+
+	bHasValidTarget = false;
 
 }
 
@@ -112,6 +114,8 @@ void AEnemy::AgroSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AA
 		AMain* Main = ((AMain*)(OtherActor));
 		if (Main)
 		{
+			bHasValidTarget = false;
+
 			if (Main->CombatTarget == this)
 			{
 				Main->SetCombatTarget(nullptr);
@@ -141,6 +145,7 @@ void AEnemy::CombatSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent
 		{
 			if (Main)
 			{
+				bHasValidTarget = true;
 				Main->SetCombatTarget(this);
 				Main->SeHasCombatTarget(true);
 
@@ -151,7 +156,10 @@ void AEnemy::CombatSphereOnOverlapBegin(UPrimitiveComponent* OverlappedComponent
 
 				CombatTarget = Main;
 				bOverlappingCombatSphere = true;
-				Attack();
+
+				//Attack();
+				float AttackTime = FMath::FRandRange(AttackMinTime, AttackMaxTime);
+				GetWorldTimerManager().SetTimer(AttackTimer, this, &AEnemy::Attack, AttackTime);
 			}
 		}
 
@@ -168,7 +176,7 @@ void AEnemy::CombatSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, 
 			{
 				
 				bOverlappingCombatSphere = false;
-				if (EnemyMovementStatus != EEnemyMovementStatus::EMS_Attacking)
+				if (EnemyMovementStatus == EEnemyMovementStatus::EMS_Attacking)
 				{
 					MoveToTarget(Main);
 					CombatTarget = nullptr;
@@ -262,7 +270,7 @@ void AEnemy::DeactivateCollision()
 
 void AEnemy::Attack()
 {
-	if (Alive())
+	if (Alive() && bHasValidTarget)
 	{
 		if (AIController)
 		{
